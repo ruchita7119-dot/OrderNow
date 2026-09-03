@@ -1,21 +1,25 @@
 package com.ordernow.hotelservice.controller;
 
 import com.ordernow.hotelservice.dto.request.CreateHotelRequest;
-import org.springframework.data.domain.Page;
 import com.ordernow.hotelservice.dto.response.HotelResponse;
 import com.ordernow.hotelservice.service.HotelService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Max;
+
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/hotels")
 @RequiredArgsConstructor
+@Validated
 public class HotelController {
 
     private final HotelService hotelService;
@@ -31,7 +35,8 @@ public class HotelController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<HotelResponse> getHotelById(@PathVariable Long id) {
+    public ResponseEntity<HotelResponse> getHotelById(
+            @PathVariable Long id) {
 
         return ResponseEntity.ok(
                 hotelService.getHotelById(id)
@@ -54,7 +59,7 @@ public class HotelController {
                 hotelService.getHotelsByCity(city)
         );
     }
-    
+
     @GetMapping("/search")
     public ResponseEntity<List<HotelResponse>> getHotelsByName(
             @RequestParam String hotelName) {
@@ -63,7 +68,7 @@ public class HotelController {
                 hotelService.getHotelsByName(hotelName)
         );
     }
-    
+
     @GetMapping("/active")
     public ResponseEntity<List<HotelResponse>> getActiveHotels() {
 
@@ -71,6 +76,7 @@ public class HotelController {
                 hotelService.getActiveHotels()
         );
     }
+
     @GetMapping("/page")
     public ResponseEntity<Page<HotelResponse>> getHotels(
 
@@ -83,7 +89,7 @@ public class HotelController {
             @Max(value = 100, message = "Size cannot exceed 100")
             int size,
 
-            @RequestParam(defaultValue = "name")
+            @RequestParam(defaultValue = "hotelName")
             String sortBy,
 
             @RequestParam(defaultValue = "asc")
@@ -98,7 +104,7 @@ public class HotelController {
                 )
         );
     }
-    
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<HotelResponse> updateHotelStatus(
             @PathVariable Long id,
@@ -108,6 +114,7 @@ public class HotelController {
                 hotelService.updateHotelStatus(id, isActive)
         );
     }
+
     @PatchMapping("/{id}/verification")
     public ResponseEntity<HotelResponse> updateHotelVerification(
             @PathVariable Long id,
@@ -117,16 +124,16 @@ public class HotelController {
                 hotelService.updateHotelVerification(id, isVerified)
         );
     }
-    
+
     @GetMapping("/rating")
     public ResponseEntity<List<HotelResponse>> getHotelsByMinimumRating(
-            @RequestParam Double minimumRating) {
+            @RequestParam BigDecimal minimumRating) {
 
         return ResponseEntity.ok(
                 hotelService.getHotelsByMinimumRating(minimumRating)
         );
     }
-    
+
     @GetMapping("/verified")
     public ResponseEntity<List<HotelResponse>> getVerifiedHotels() {
 
@@ -134,6 +141,7 @@ public class HotelController {
                 hotelService.getVerifiedHotels()
         );
     }
+
     @PutMapping("/{id}")
     public ResponseEntity<HotelResponse> updateHotel(
             @PathVariable Long id,
@@ -145,7 +153,8 @@ public class HotelController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteHotel(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteHotel(
+            @PathVariable Long id) {
 
         hotelService.deleteHotel(id);
 

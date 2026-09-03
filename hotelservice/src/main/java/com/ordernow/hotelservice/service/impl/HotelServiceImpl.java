@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -52,7 +53,8 @@ public class HotelServiceImpl implements HotelService {
 
         if (cachedHotel != null) {
 
-            HotelResponse cachedResponse = (HotelResponse) cachedHotel;
+            HotelResponse cachedResponse =
+                    (HotelResponse) cachedHotel;
 
             if (Boolean.TRUE.equals(cachedResponse.getIsActive())) {
                 return cachedResponse;
@@ -71,7 +73,8 @@ public class HotelServiceImpl implements HotelService {
                     "Hotel not found with id : " + id);
         }
 
-        HotelResponse response = hotelMapper.toResponse(hotel);
+        HotelResponse response =
+                hotelMapper.toResponse(hotel);
 
         redisTemplate.opsForValue()
                 .set(key, response, CACHE_DURATION);
@@ -95,11 +98,19 @@ public class HotelServiceImpl implements HotelService {
             String sortBy,
             String direction) {
 
+        List<String> allowedSortFields =
+                List.of("id", "hotelName", "city", "rating");
+
+        if (!allowedSortFields.contains(sortBy)) {
+            sortBy = "hotelName";
+        }
+
         Sort sort = direction.equalsIgnoreCase("desc")
                 ? Sort.by(sortBy).descending()
                 : Sort.by(sortBy).ascending();
 
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable =
+                PageRequest.of(page, size, sort);
 
         return hotelRepository.findByIsActiveTrue(pageable)
                 .map(hotelMapper::toResponse);
@@ -119,7 +130,8 @@ public class HotelServiceImpl implements HotelService {
     public List<HotelResponse> getHotelsByName(String hotelName) {
 
         return hotelRepository
-                .findByNameContainingIgnoreCaseAndIsActiveTrue(hotelName)
+                .findByHotelNameContainingIgnoreCaseAndIsActiveTrue(
+                        hotelName)
                 .stream()
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
@@ -145,7 +157,8 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
-    public List<HotelResponse> getHotelsByMinimumRating(Double rating) {
+    public List<HotelResponse> getHotelsByMinimumRating(
+            BigDecimal rating) {
 
         return hotelRepository
                 .findByRatingGreaterThanEqualAndIsActiveTrue(rating)
@@ -155,7 +168,9 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
-    public HotelResponse updateHotelStatus(Long id, boolean isActive) {
+    public HotelResponse updateHotelStatus(
+            Long id,
+            boolean isActive) {
 
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
@@ -164,9 +179,11 @@ public class HotelServiceImpl implements HotelService {
 
         hotel.setIsActive(isActive);
 
-        Hotel updatedHotel = hotelRepository.save(hotel);
+        Hotel updatedHotel =
+                hotelRepository.save(hotel);
 
-        HotelResponse response = hotelMapper.toResponse(updatedHotel);
+        HotelResponse response =
+                hotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 
@@ -188,9 +205,11 @@ public class HotelServiceImpl implements HotelService {
 
         hotel.setIsVerified(isVerified);
 
-        Hotel updatedHotel = hotelRepository.save(hotel);
+        Hotel updatedHotel =
+                hotelRepository.save(hotel);
 
-        HotelResponse response = hotelMapper.toResponse(updatedHotel);
+        HotelResponse response =
+                hotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 
@@ -212,9 +231,11 @@ public class HotelServiceImpl implements HotelService {
 
         hotelMapper.updateEntity(request, hotel);
 
-        Hotel updatedHotel = hotelRepository.save(hotel);
+        Hotel updatedHotel =
+                hotelRepository.save(hotel);
 
-        HotelResponse response = hotelMapper.toResponse(updatedHotel);
+        HotelResponse response =
+                hotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 

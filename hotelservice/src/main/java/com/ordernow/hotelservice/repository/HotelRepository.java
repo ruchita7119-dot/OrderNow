@@ -6,34 +6,33 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
 public interface HotelRepository extends JpaRepository<Hotel, Long> {
 
-    // Basic searches
     List<Hotel> findByCityIgnoreCase(String city);
 
-    List<Hotel> findByNameContainingIgnoreCase(String name);
+    List<Hotel> findByHotelNameContainingIgnoreCase(String hotelName);
 
-    // Active hotels
     List<Hotel> findByIsActiveTrue();
 
-    // Verified hotels
     List<Hotel> findByIsVerifiedTrue();
 
-    // Rating filter
-    List<Hotel> findByRatingGreaterThanEqual(Double rating);
+    List<Hotel> findByRatingGreaterThanEqual(BigDecimal rating);
 
-    // Pagination for active hotels
     Page<Hotel> findByIsActiveTrue(Pageable pageable);
 
-    // Active-only searches
     List<Hotel> findByCityIgnoreCaseAndIsActiveTrue(String city);
 
-    List<Hotel> findByNameContainingIgnoreCaseAndIsActiveTrue(String name);
+    List<Hotel> findByHotelNameContainingIgnoreCaseAndIsActiveTrue(
+            String hotelName
+    );
 
-    List<Hotel> findByRatingGreaterThanEqualAndIsActiveTrue(Double rating);
+    List<Hotel> findByRatingGreaterThanEqualAndIsActiveTrue(
+            BigDecimal rating
+    );
 
     List<Hotel> findByIsVerifiedTrueAndIsActiveTrue();
 }

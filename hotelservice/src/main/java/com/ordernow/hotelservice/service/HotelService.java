@@ -4,6 +4,7 @@ import com.ordernow.hotelservice.dto.request.CreateHotelRequest;
 import com.ordernow.hotelservice.dto.response.HotelResponse;
 import org.springframework.data.domain.Page;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface HotelService {
@@ -22,7 +23,8 @@ public interface HotelService {
     
     Page<HotelResponse> getHotels(int page, int size, String sortBy, String direction);
     
-    List<HotelResponse> getHotelsByMinimumRating(Double rating);
+//    List<HotelResponse> getHotelsByMinimumRating(Double rating);
+    List<HotelResponse> getHotelsByMinimumRating(BigDecimal rating);
     
     List<HotelResponse> getVerifiedHotels();
     
