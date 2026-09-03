@@ -8,6 +8,10 @@ import com.ordernow.hotelservice.mapper.HotelMapper;
 import com.ordernow.hotelservice.repository.HotelRepository;
 import com.ordernow.hotelservice.service.HotelService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -47,13 +51,25 @@ public class HotelServiceImpl implements HotelService {
         Object cachedHotel = redisTemplate.opsForValue().get(key);
 
         if (cachedHotel != null) {
-            return (HotelResponse) cachedHotel;
+
+            HotelResponse cachedResponse = (HotelResponse) cachedHotel;
+
+            if (Boolean.TRUE.equals(cachedResponse.getIsActive())) {
+                return cachedResponse;
+            }
+
+            redisTemplate.delete(key);
         }
 
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Hotel not found with id : " + id));
+
+        if (!Boolean.TRUE.equals(hotel.getIsActive())) {
+            throw new ResourceNotFoundException(
+                    "Hotel not found with id : " + id);
+        }
 
         HotelResponse response = hotelMapper.toResponse(hotel);
 
@@ -66,10 +82,122 @@ public class HotelServiceImpl implements HotelService {
     @Override
     public List<HotelResponse> getAllHotels() {
 
-        return hotelRepository.findAll()
+        return hotelRepository.findByIsActiveTrue()
                 .stream()
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<HotelResponse> getHotels(
+            int page,
+            int size,
+            String sortBy,
+            String direction) {
+
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return hotelRepository.findByIsActiveTrue(pageable)
+                .map(hotelMapper::toResponse);
+    }
+
+    @Override
+    public List<HotelResponse> getHotelsByCity(String city) {
+
+        return hotelRepository
+                .findByCityIgnoreCaseAndIsActiveTrue(city)
+                .stream()
+                .map(hotelMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<HotelResponse> getHotelsByName(String hotelName) {
+
+        return hotelRepository
+                .findByNameContainingIgnoreCaseAndIsActiveTrue(hotelName)
+                .stream()
+                .map(hotelMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<HotelResponse> getActiveHotels() {
+
+        return hotelRepository.findByIsActiveTrue()
+                .stream()
+                .map(hotelMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<HotelResponse> getVerifiedHotels() {
+
+        return hotelRepository
+                .findByIsVerifiedTrueAndIsActiveTrue()
+                .stream()
+                .map(hotelMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<HotelResponse> getHotelsByMinimumRating(Double rating) {
+
+        return hotelRepository
+                .findByRatingGreaterThanEqualAndIsActiveTrue(rating)
+                .stream()
+                .map(hotelMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public HotelResponse updateHotelStatus(Long id, boolean isActive) {
+
+        Hotel hotel = hotelRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Hotel not found with id : " + id));
+
+        hotel.setIsActive(isActive);
+
+        Hotel updatedHotel = hotelRepository.save(hotel);
+
+        HotelResponse response = hotelMapper.toResponse(updatedHotel);
+
+        String key = "hotel:" + id;
+
+        redisTemplate.opsForValue()
+                .set(key, response, CACHE_DURATION);
+
+        return response;
+    }
+
+    @Override
+    public HotelResponse updateHotelVerification(
+            Long id,
+            boolean isVerified) {
+
+        Hotel hotel = hotelRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Hotel not found with id : " + id));
+
+        hotel.setIsVerified(isVerified);
+
+        Hotel updatedHotel = hotelRepository.save(hotel);
+
+        HotelResponse response = hotelMapper.toResponse(updatedHotel);
+
+        String key = "hotel:" + id;
+
+        redisTemplate.opsForValue()
+                .set(key, response, CACHE_DURATION);
+
+        return response;
     }
 
     @Override
@@ -86,8 +214,7 @@ public class HotelServiceImpl implements HotelService {
 
         Hotel updatedHotel = hotelRepository.save(hotel);
 
-        HotelResponse response =
-                hotelMapper.toResponse(updatedHotel);
+        HotelResponse response = hotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 
@@ -105,7 +232,9 @@ public class HotelServiceImpl implements HotelService {
                         new ResourceNotFoundException(
                                 "Hotel not found with id : " + id));
 
-        hotelRepository.delete(hotel);
+        hotel.setIsActive(false);
+
+        hotelRepository.save(hotel);
 
         String key = "hotel:" + id;
 
