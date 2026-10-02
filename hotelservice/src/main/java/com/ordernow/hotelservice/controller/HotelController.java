@@ -4,25 +4,33 @@ import com.ordernow.hotelservice.dto.request.CreateHotelRequest;
 import com.ordernow.hotelservice.dto.response.HotelResponse;
 import com.ordernow.hotelservice.service.HotelService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+@CrossOrigin(
+	    origins = {
+	        "http://localhost:3000",
+	        "http://localhost:5173"
+	    }
+	)
 @RestController
 @RequestMapping("/api/v1/hotels")
 @RequiredArgsConstructor
-@Validated
 public class HotelController {
 
     private final HotelService hotelService;
+
 
     @PostMapping
     public ResponseEntity<HotelResponse> createHotel(
@@ -34,14 +42,18 @@ public class HotelController {
         );
     }
 
+
     @GetMapping("/{id}")
     public ResponseEntity<HotelResponse> getHotelById(
-            @PathVariable Long id) {
+            @PathVariable
+            @Positive(message = "Hotel id must be greater than 0")
+            Long id) {
 
         return ResponseEntity.ok(
                 hotelService.getHotelById(id)
         );
     }
+
 
     @GetMapping
     public ResponseEntity<List<HotelResponse>> getAllHotels() {
@@ -50,6 +62,7 @@ public class HotelController {
                 hotelService.getAllHotels()
         );
     }
+
 
     @GetMapping("/city/{city}")
     public ResponseEntity<List<HotelResponse>> getHotelsByCity(
@@ -60,6 +73,7 @@ public class HotelController {
         );
     }
 
+
     @GetMapping("/search")
     public ResponseEntity<List<HotelResponse>> getHotelsByName(
             @RequestParam String hotelName) {
@@ -69,6 +83,7 @@ public class HotelController {
         );
     }
 
+
     @GetMapping("/active")
     public ResponseEntity<List<HotelResponse>> getActiveHotels() {
 
@@ -77,16 +92,26 @@ public class HotelController {
         );
     }
 
+
     @GetMapping("/page")
     public ResponseEntity<Page<HotelResponse>> getHotels(
 
             @RequestParam(defaultValue = "0")
-            @Min(value = 0, message = "Page number cannot be negative")
+            @Min(
+                    value = 0,
+                    message = "Page number cannot be negative"
+            )
             int page,
 
             @RequestParam(defaultValue = "10")
-            @Min(value = 1, message = "Size must be at least 1")
-            @Max(value = 100, message = "Size cannot exceed 100")
+            @Min(
+                    value = 1,
+                    message = "Size must be at least 1"
+            )
+            @Max(
+                    value = 100,
+                    message = "Size cannot exceed 100"
+            )
             int size,
 
             @RequestParam(defaultValue = "hotelName")
@@ -105,34 +130,28 @@ public class HotelController {
         );
     }
 
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<HotelResponse> updateHotelStatus(
-            @PathVariable Long id,
-            @RequestParam boolean isActive) {
-
-        return ResponseEntity.ok(
-                hotelService.updateHotelStatus(id, isActive)
-        );
-    }
-
-    @PatchMapping("/{id}/verification")
-    public ResponseEntity<HotelResponse> updateHotelVerification(
-            @PathVariable Long id,
-            @RequestParam boolean isVerified) {
-
-        return ResponseEntity.ok(
-                hotelService.updateHotelVerification(id, isVerified)
-        );
-    }
 
     @GetMapping("/rating")
     public ResponseEntity<List<HotelResponse>> getHotelsByMinimumRating(
-            @RequestParam BigDecimal minimumRating) {
+
+            @RequestParam
+            @DecimalMin(
+                    value = "0.0",
+                    message = "Minimum rating cannot be negative"
+            )
+            @DecimalMax(
+                    value = "5",
+                    message = "Minimum rating cannot exceed 5"
+            )
+            BigDecimal minimumRating) {
 
         return ResponseEntity.ok(
-                hotelService.getHotelsByMinimumRating(minimumRating)
+                hotelService.getHotelsByMinimumRating(
+                        minimumRating
+                )
         );
     }
+
 
     @GetMapping("/verified")
     public ResponseEntity<List<HotelResponse>> getVerifiedHotels() {
@@ -142,19 +161,68 @@ public class HotelController {
         );
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<HotelResponse> updateHotel(
-            @PathVariable Long id,
-            @Valid @RequestBody CreateHotelRequest request) {
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<HotelResponse> updateHotelStatus(
+
+            @PathVariable
+            @Positive(message = "Hotel id must be greater than 0")
+            Long id,
+
+            @RequestParam boolean isActive) {
 
         return ResponseEntity.ok(
-                hotelService.updateHotel(id, request)
+                hotelService.updateHotelStatus(
+                        id,
+                        isActive
+                )
         );
     }
 
+
+    @PatchMapping("/{id}/verification")
+    public ResponseEntity<HotelResponse> updateHotelVerification(
+
+            @PathVariable
+            @Positive(message = "Hotel id must be greater than 0")
+            Long id,
+
+            @RequestParam boolean isVerified) {
+
+        return ResponseEntity.ok(
+                hotelService.updateHotelVerification(
+                        id,
+                        isVerified
+                )
+        );
+    }
+
+
+    @PutMapping("/{id}")
+    public ResponseEntity<HotelResponse> updateHotel(
+
+            @PathVariable
+            @Positive(message = "Hotel id must be greater than 0")
+            Long id,
+
+            @Valid @RequestBody
+            CreateHotelRequest request) {
+
+        return ResponseEntity.ok(
+                hotelService.updateHotel(
+                        id,
+                        request
+                )
+        );
+    }
+
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteHotel(
-            @PathVariable Long id) {
+
+            @PathVariable
+            @Positive(message = "Hotel id must be greater than 0")
+            Long id) {
 
         hotelService.deleteHotel(id);
 

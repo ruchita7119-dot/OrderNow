@@ -3,7 +3,6 @@ package com.ordernow.userservice.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -27,7 +26,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
                             "/api/v1/auth/**",
+                            "/api/v1/users/**",
                             "/swagger-ui/**",
+                            "/swagger-ui.html",
                             "/v3/api-docs/**",
                             "/api-docs/**",
                             "/actuator/**")
@@ -37,11 +38,13 @@ public class SecurityConfig {
                     .authenticated())
 
             .sessionManagement(session ->
-                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                    session.sessionCreationPolicy(
+                            SessionCreationPolicy.STATELESS))
 
             .authenticationProvider(authenticationProvider)
 
-            .addFilterBefore(jwtAuthenticationFilter,
+            .addFilterBefore(
+                    jwtAuthenticationFilter,
                     UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -35,4 +35,9 @@ public interface HotelRepository extends JpaRepository<Hotel, Long> {
     );
 
     List<Hotel> findByIsVerifiedTrueAndIsActiveTrue();
+
+    boolean existsByHotelNameIgnoreCaseAndAddressIgnoreCase(
+            String hotelName,
+            String address
+    );
 }

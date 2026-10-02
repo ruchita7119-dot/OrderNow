@@ -14,7 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-
+import com.ordernow.hotelservice.exception.DuplicateResourceException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
@@ -25,13 +25,31 @@ import java.util.stream.Collectors;
 public class HotelServiceImpl implements HotelService {
 
     private final HotelRepository hotelRepository;
+
     private final HotelMapper hotelMapper;
+
     private final RedisTemplate<String, Object> redisTemplate;
 
-    private static final Duration CACHE_DURATION = Duration.ofMinutes(10);
+    private static final Duration CACHE_DURATION =
+            Duration.ofMinutes(10);
+
 
     @Override
     public HotelResponse createHotel(CreateHotelRequest request) {
+
+        validateOperatingHours(request);
+
+        boolean hotelExists = hotelRepository
+                .existsByHotelNameIgnoreCaseAndAddressIgnoreCase(
+                        request.getHotelName(),
+                        request.getAddress()
+                );
+
+        if (hotelExists) {
+            throw new DuplicateResourceException(
+                    "Hotel already exists at this address"
+            );
+        }
 
         Hotel hotel = hotelMapper.toEntity(request);
 
@@ -49,14 +67,17 @@ public class HotelServiceImpl implements HotelService {
 
         String key = "hotel:" + id;
 
-        Object cachedHotel = redisTemplate.opsForValue().get(key);
+        Object cachedHotel =
+                redisTemplate.opsForValue().get(key);
 
         if (cachedHotel != null) {
 
             HotelResponse cachedResponse =
                     (HotelResponse) cachedHotel;
 
-            if (Boolean.TRUE.equals(cachedResponse.getIsActive())) {
+            if (Boolean.TRUE.equals(
+                    cachedResponse.getIsActive())) {
+
                 return cachedResponse;
             }
 
@@ -66,21 +87,31 @@ public class HotelServiceImpl implements HotelService {
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Hotel not found with id : " + id));
+                                "Hotel not found with id : " + id
+                        )
+                );
 
-        if (!Boolean.TRUE.equals(hotel.getIsActive())) {
+        if (!Boolean.TRUE.equals(
+                hotel.getIsActive())) {
+
             throw new ResourceNotFoundException(
-                    "Hotel not found with id : " + id);
+                    "Hotel not found with id : " + id
+            );
         }
 
         HotelResponse response =
                 hotelMapper.toResponse(hotel);
 
         redisTemplate.opsForValue()
-                .set(key, response, CACHE_DURATION);
+                .set(
+                        key,
+                        response,
+                        CACHE_DURATION
+                );
 
         return response;
     }
+
 
     @Override
     public List<HotelResponse> getAllHotels() {
@@ -90,6 +121,7 @@ public class HotelServiceImpl implements HotelService {
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public Page<HotelResponse> getHotels(
@@ -116,6 +148,7 @@ public class HotelServiceImpl implements HotelService {
                 .map(hotelMapper::toResponse);
     }
 
+
     @Override
     public List<HotelResponse> getHotelsByCity(String city) {
 
@@ -126,16 +159,19 @@ public class HotelServiceImpl implements HotelService {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public List<HotelResponse> getHotelsByName(String hotelName) {
 
         return hotelRepository
                 .findByHotelNameContainingIgnoreCaseAndIsActiveTrue(
-                        hotelName)
+                        hotelName
+                )
                 .stream()
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public List<HotelResponse> getActiveHotels() {
@@ -145,6 +181,7 @@ public class HotelServiceImpl implements HotelService {
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public List<HotelResponse> getVerifiedHotels() {
@@ -156,16 +193,20 @@ public class HotelServiceImpl implements HotelService {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public List<HotelResponse> getHotelsByMinimumRating(
             BigDecimal rating) {
 
         return hotelRepository
-                .findByRatingGreaterThanEqualAndIsActiveTrue(rating)
+                .findByRatingGreaterThanEqualAndIsActiveTrue(
+                        rating
+                )
                 .stream()
                 .map(hotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
 
     @Override
     public HotelResponse updateHotelStatus(
@@ -175,7 +216,9 @@ public class HotelServiceImpl implements HotelService {
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Hotel not found with id : " + id));
+                                "Hotel not found with id : " + id
+                        )
+                );
 
         hotel.setIsActive(isActive);
 
@@ -188,10 +231,15 @@ public class HotelServiceImpl implements HotelService {
         String key = "hotel:" + id;
 
         redisTemplate.opsForValue()
-                .set(key, response, CACHE_DURATION);
+                .set(
+                        key,
+                        response,
+                        CACHE_DURATION
+                );
 
         return response;
     }
+
 
     @Override
     public HotelResponse updateHotelVerification(
@@ -201,7 +249,9 @@ public class HotelServiceImpl implements HotelService {
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Hotel not found with id : " + id));
+                                "Hotel not found with id : " + id
+                        )
+                );
 
         hotel.setIsVerified(isVerified);
 
@@ -214,20 +264,29 @@ public class HotelServiceImpl implements HotelService {
         String key = "hotel:" + id;
 
         redisTemplate.opsForValue()
-                .set(key, response, CACHE_DURATION);
+                .set(
+                        key,
+                        response,
+                        CACHE_DURATION
+                );
 
         return response;
     }
+
 
     @Override
     public HotelResponse updateHotel(
             Long id,
             CreateHotelRequest request) {
 
+        validateOperatingHours(request);
+
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Hotel not found with id : " + id));
+                                "Hotel not found with id : " + id
+                        )
+                );
 
         hotelMapper.updateEntity(request, hotel);
 
@@ -240,10 +299,15 @@ public class HotelServiceImpl implements HotelService {
         String key = "hotel:" + id;
 
         redisTemplate.opsForValue()
-                .set(key, response, CACHE_DURATION);
+                .set(
+                        key,
+                        response,
+                        CACHE_DURATION
+                );
 
         return response;
     }
+
 
     @Override
     public void deleteHotel(Long id) {
@@ -251,7 +315,9 @@ public class HotelServiceImpl implements HotelService {
         Hotel hotel = hotelRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Hotel not found with id : " + id));
+                                "Hotel not found with id : " + id
+                        )
+                );
 
         hotel.setIsActive(false);
 
@@ -260,5 +326,20 @@ public class HotelServiceImpl implements HotelService {
         String key = "hotel:" + id;
 
         redisTemplate.delete(key);
+    }
+
+
+    private void validateOperatingHours(
+            CreateHotelRequest request) {
+
+        if (request.getOpeningTime() != null
+                && request.getClosingTime() != null
+                && !request.getClosingTime()
+                .isAfter(request.getOpeningTime())) {
+
+            throw new IllegalArgumentException(
+                    "Closing time must be after opening time"
+            );
+        }
     }
 }
