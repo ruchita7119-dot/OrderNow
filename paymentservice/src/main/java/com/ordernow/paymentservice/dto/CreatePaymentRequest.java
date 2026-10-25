@@ -1,7 +1,9 @@
+
 package com.ordernow.paymentservice.dto;
 
 import java.math.BigDecimal;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ordernow.paymentservice.entity.PaymentMethod;
 
 import jakarta.validation.constraints.DecimalMin;
@@ -20,11 +22,15 @@ public class CreatePaymentRequest {
     @NotNull(message = "Order ID is required")
     private Long orderId;
 
-    @NotNull(message = "User ID is required")
+    // Set by PaymentController using the authenticated Gateway header
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private String userId;
 
     @NotNull(message = "Amount is required")
-    @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
+    @DecimalMin(
+        value = "0.01",
+        message = "Amount must be greater than zero"
+    )
     private BigDecimal amount;
 
     @NotNull(message = "Payment method is required")

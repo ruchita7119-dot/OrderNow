@@ -1,3 +1,4 @@
+
 package com.ordernow.userservice.security;
 
 import java.io.IOException;
@@ -9,8 +10,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import com.ordernow.userservice.repository.UserRepository;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -25,6 +24,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
 
+    // Internal requests use shared-secret authentication instead of customer JWT.
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+
+        return request.getRequestURI()
+                .startsWith("/internal/api/v1/users/");
+    }
+
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
@@ -33,39 +40,61 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
 
+        // Continue when no Bearer token is supplied.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
+        final String jwt = authHeader.substring(7).trim();
 
-        userEmail = jwtService.extractUsername(jwt);
+        // Reject an empty JWT.
+        if (jwt.isEmpty()) {
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Invalid authentication token");
+            return;
+        }
 
-        if (userEmail != null
-                && SecurityContextHolder.getContext().getAuthentication() == null) {
+        try {
+            String userEmail = jwtService.extractUsername(jwt);
 
-            UserDetails userDetails =
-                    userDetailsService.loadUserByUsername(userEmail);
+            if (userEmail != null
+                    && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            if (jwtService.isTokenValid(jwt, userDetails)) {
+                UserDetails userDetails =
+                        userDetailsService.loadUserByUsername(userEmail);
 
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
+                if (jwtService.isTokenValid(jwt, userDetails)) {
 
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request));
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities());
 
-                SecurityContextHolder.getContext()
-                        .setAuthentication(authToken);
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource()
+                                    .buildDetails(request));
+
+                    SecurityContextHolder.getContext()
+                            .setAuthentication(authToken);
+                } else {
+                    response.sendError(
+                            HttpServletResponse.SC_UNAUTHORIZED,
+                            "Invalid or expired authentication token");
+                    return;
+                }
             }
+
+        } catch (Exception ex) {
+            SecurityContextHolder.clearContext();
+
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Invalid authentication token");
+            return;
         }
 
         filterChain.doFilter(request, response);

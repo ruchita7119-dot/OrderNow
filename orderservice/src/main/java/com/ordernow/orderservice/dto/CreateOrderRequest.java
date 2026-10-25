@@ -1,7 +1,9 @@
+
 package com.ordernow.orderservice.dto;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ordernow.orderservice.entity.PaymentMethod;
 
 import jakarta.validation.Valid;
@@ -19,7 +21,9 @@ import lombok.Setter;
 @AllArgsConstructor
 public class CreateOrderRequest {
 
-    @NotBlank(message = "User ID is required")
+    // Set internally by OrderController from the Gateway header.
+    // Ignore any userId supplied by the frontend.
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private String userId;
 
     @NotNull(message = "Hotel ID is required")

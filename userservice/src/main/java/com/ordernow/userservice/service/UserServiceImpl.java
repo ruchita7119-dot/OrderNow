@@ -1,7 +1,13 @@
+
 package com.ordernow.userservice.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +22,8 @@ import com.ordernow.userservice.exception.EmailAlreadyExistsException;
 import com.ordernow.userservice.exception.ResourceNotFoundException;
 import com.ordernow.userservice.mapper.UserMapper;
 import com.ordernow.userservice.repository.UserRepository;
-
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-
 import com.ordernow.userservice.security.JwtService;
+
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -33,7 +35,7 @@ public class UserServiceImpl implements UserService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    
+
     @Override
     public UserResponse registerUser(RegisterRequest request) {
 
@@ -57,12 +59,13 @@ public class UserServiceImpl implements UserService {
         return UserMapper.toUserResponse(savedUser);
     }
 
-    
     @Override
     public UserResponse getUserById(String id) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id : " + id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id : " + id));
 
         return UserMapper.toUserResponse(user);
     }
@@ -80,7 +83,9 @@ public class UserServiceImpl implements UserService {
     public UserResponse updateUser(String id, UpdateUserRequest request) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id : " + id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id : " + id));
 
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -95,24 +100,33 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(String id) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id : " + id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id : " + id));
 
         userRepository.delete(user);
     }
 
-
     @Override
     public AuthResponse login(LoginRequest request) {
-
+    	  User user = userRepository.findByEmail(request.getEmail())
+                  .orElseThrow(() ->
+                          new ResourceNotFoundException("User not found"));
+         
+          System.out.println("User found: " + user.getEmail());
+          System.out.println("Enabled: " + user.isEnabled());
+          System.out.println("Password matches: " +
+                  passwordEncoder.matches(request.getPassword(), user.getPassword()));
+        
+        // Authenticate user credentials
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
-                        request.getPassword()));
+                        request.getPassword()
+                )
+        );
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("User not found"));
-
+        // Fetch authenticated user
         UserDetails userDetails =
                 org.springframework.security.core.userdetails.User
                         .builder()
@@ -121,7 +135,11 @@ public class UserServiceImpl implements UserService {
                         .roles(user.getRole().name())
                         .build();
 
-        String token = jwtService.generateToken(userDetails);
+        // Include MongoDB user ID in JWT claims
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("userId", user.getId());
+
+        String token = jwtService.generateToken(extraClaims, userDetails);
 
         return AuthResponse.builder()
                 .token(token)

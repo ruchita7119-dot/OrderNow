@@ -1,3 +1,4 @@
+
 package com.ordernow.paymentservice.service.impl;
 
 import java.util.List;
@@ -32,58 +33,48 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public PaymentResponse createPayment(CreatePaymentRequest request) {
 
+        if (request.getUserId() == null || request.getUserId().isBlank()) {
+            throw new IllegalArgumentException("Authenticated user ID is required");
+        }
+
         if (paymentRepository.existsByOrderId(request.getOrderId())) {
             throw new IllegalArgumentException(
-                    "Payment already exists for order: "
-                            + request.getOrderId());
+                    "Payment already exists for order: " + request.getOrderId());
         }
 
         OrderResponse order = getOrder(request.getOrderId());
 
         if (order.getUserId() == null
                 || !order.getUserId().equals(request.getUserId())) {
-
-            throw new IllegalArgumentException(
-                    "User does not match the order");
+            throw new IllegalArgumentException("User does not match the order");
         }
 
         if (order.getTotalAmount() == null
                 || request.getAmount() == null
-                || order.getTotalAmount()
-                        .compareTo(request.getAmount()) != 0) {
-
+                || order.getTotalAmount().compareTo(request.getAmount()) != 0) {
             throw new IllegalArgumentException(
                     "Payment amount does not match order amount");
         }
 
         if (order.getPaymentMethod() != request.getPaymentMethod()) {
-
             throw new IllegalArgumentException(
                     "Payment method does not match the order");
         }
 
         if (request.getPaymentMethod() == PaymentMethod.UPI) {
-
-            if (request.getUpiId() == null
-                    || request.getUpiId().isBlank()) {
-
+            if (request.getUpiId() == null || request.getUpiId().isBlank()) {
                 throw new IllegalArgumentException(
                         "UPI ID is required for UPI payment");
             }
-
         } else if (request.getPaymentMethod() == PaymentMethod.COD) {
-
             request.setUpiId(null);
         }
 
         Payment payment = paymentMapper.toEntity(request);
-
         payment.setPaymentStatus(PaymentStatus.PENDING);
 
-        Payment savedPayment =
-                paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
 
-        // Synchronize Order Service
         orderClient.updatePaymentStatus(
                 savedPayment.getOrderId(),
                 PaymentStatus.PENDING.name(),
@@ -94,47 +85,39 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional(readOnly = true)
-    public PaymentResponse getPaymentById(Long id) {
+    public PaymentResponse getPaymentById(Long id, String userId) {
 
-        Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Payment not found with id: " + id));
+        Payment payment = getOwnedPayment(id, userId);
 
         return paymentMapper.toResponse(payment);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PaymentResponse getPaymentByOrderId(Long orderId) {
+    public PaymentResponse getPaymentByOrderId(Long orderId, String userId) {
 
-        Payment payment = paymentRepository.findByOrderId(orderId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Payment not found for order: "
-                                        + orderId));
+        Payment payment = paymentRepository
+                .findByOrderIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found for order: " + orderId));
 
         return paymentMapper.toResponse(payment);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getAllPayments() {
+    public List<PaymentResponse> getPaymentsByUserId(String userId) {
 
-        return paymentRepository.findAll()
+        return paymentRepository.findAllByUserId(userId)
                 .stream()
                 .map(paymentMapper::toResponse)
                 .toList();
     }
 
     @Override
-    public PaymentResponse processUpiPayment(Long paymentId) {
+    public PaymentResponse processUpiPayment(Long paymentId, String userId) {
 
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Payment not found with id: "
-                                        + paymentId));
+        Payment payment = getOwnedPayment(paymentId, userId);
 
         if (payment.getPaymentMethod() != PaymentMethod.UPI) {
             throw new IllegalArgumentException(
@@ -146,24 +129,17 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         if (payment.getPaymentStatus() == PaymentStatus.FAILED) {
-            throw new IllegalArgumentException(
-                    "Payment has already failed");
+            throw new IllegalArgumentException("Payment has already failed");
         }
 
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
 
         payment.setTransactionId(
-                "UPI-"
-                        + UUID.randomUUID()
-                                .toString()
-                                .replace("-", "")
-                                .substring(0, 16)
-                                .toUpperCase());
+                "UPI-" + UUID.randomUUID().toString()
+                        .replace("-", "").substring(0, 16).toUpperCase());
 
-        Payment updatedPayment =
-                paymentRepository.save(payment);
+        Payment updatedPayment = paymentRepository.save(payment);
 
-        // Synchronize Order Service
         orderClient.updatePaymentStatus(
                 payment.getOrderId(),
                 PaymentStatus.SUCCESS.name(),
@@ -173,13 +149,9 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public PaymentResponse completeCodPayment(Long paymentId) {
+    public PaymentResponse completeCodPayment(Long paymentId, String userId) {
 
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Payment not found with id: "
-                                        + paymentId));
+        Payment payment = getOwnedPayment(paymentId, userId);
 
         if (payment.getPaymentMethod() != PaymentMethod.COD) {
             throw new IllegalArgumentException(
@@ -191,24 +163,17 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         if (payment.getPaymentStatus() == PaymentStatus.FAILED) {
-            throw new IllegalArgumentException(
-                    "COD payment has already failed");
+            throw new IllegalArgumentException("COD payment has already failed");
         }
 
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
 
         payment.setTransactionId(
-                "COD-"
-                        + UUID.randomUUID()
-                                .toString()
-                                .replace("-", "")
-                                .substring(0, 16)
-                                .toUpperCase());
+                "COD-" + UUID.randomUUID().toString()
+                        .replace("-", "").substring(0, 16).toUpperCase());
 
-        Payment updatedPayment =
-                paymentRepository.save(payment);
+        Payment updatedPayment = paymentRepository.save(payment);
 
-        // Synchronize Order Service
         orderClient.updatePaymentStatus(
                 payment.getOrderId(),
                 PaymentStatus.SUCCESS.name(),
@@ -217,19 +182,16 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentMapper.toResponse(updatedPayment);
     }
 
+    // Keep this operation for trusted administrative/internal use.
     @Override
-    public PaymentResponse updatePaymentStatus(
-            Long id,
-            PaymentStatus status) {
+    public PaymentResponse updatePaymentStatus(Long id, PaymentStatus status) {
 
         Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Payment not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found with id: " + id));
 
         if (payment.getPaymentStatus() == PaymentStatus.SUCCESS
                 && status != PaymentStatus.SUCCESS) {
-
             throw new IllegalArgumentException(
                     "Successful payment status cannot be changed");
         }
@@ -239,24 +201,16 @@ public class PaymentServiceImpl implements PaymentService {
         if (status == PaymentStatus.SUCCESS
                 && payment.getTransactionId() == null) {
 
-            String prefix =
-                    payment.getPaymentMethod() == PaymentMethod.UPI
-                            ? "UPI-"
-                            : "COD-";
+            String prefix = payment.getPaymentMethod() == PaymentMethod.UPI
+                    ? "UPI-" : "COD-";
 
             payment.setTransactionId(
-                    prefix
-                            + UUID.randomUUID()
-                                    .toString()
-                                    .replace("-", "")
-                                    .substring(0, 16)
-                                    .toUpperCase());
+                    prefix + UUID.randomUUID().toString()
+                            .replace("-", "").substring(0, 16).toUpperCase());
         }
 
-        Payment updatedPayment =
-                paymentRepository.save(payment);
+        Payment updatedPayment = paymentRepository.save(payment);
 
-        // Synchronize Order Service
         orderClient.updatePaymentStatus(
                 payment.getOrderId(),
                 status.name(),
@@ -265,15 +219,19 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentMapper.toResponse(updatedPayment);
     }
 
+    private Payment getOwnedPayment(Long paymentId, String userId) {
+
+        return paymentRepository.findByIdAndUserId(paymentId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found with id: " + paymentId));
+    }
+
     private OrderResponse getOrder(Long orderId) {
 
         try {
-
-            OrderResponse order =
-                    orderClient.getOrderById(orderId);
+            OrderResponse order = orderClient.getOrderById(orderId);
 
             if (order == null || order.getId() == null) {
-
                 throw new ResourceNotFoundException(
                         "Order not found with id: " + orderId);
             }
@@ -281,11 +239,8 @@ public class PaymentServiceImpl implements PaymentService {
             return order;
 
         } catch (ResourceNotFoundException ex) {
-
             throw ex;
-
         } catch (Exception ex) {
-
             throw new ResourceNotFoundException(
                     "Unable to find order with id: " + orderId);
         }

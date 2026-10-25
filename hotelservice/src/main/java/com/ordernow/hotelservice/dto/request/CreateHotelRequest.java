@@ -1,93 +1,75 @@
 package com.ordernow.hotelservice.dto.request;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Setter
 public class CreateHotelRequest {
 
     @NotBlank(message = "Hotel name is required")
-    @Size(
-            min = 2,
-            max = 150,
-            message = "Hotel name must be between 2 and 150 characters"
-    )
+    @Size(max = 150, message = "Hotel name must not exceed 150 characters")
     private String hotelName;
 
-    @Size(
-            max = 1000,
-            message = "Description cannot exceed 1000 characters"
-    )
     private String description;
 
     @NotNull(message = "Owner ID is required")
     private Long ownerId;
 
     @NotBlank(message = "Email is required")
-    @Email(message = "Please provide a valid email address")
+    @Email(message = "Invalid email format")
     private String email;
 
     @NotBlank(message = "Phone number is required")
-    @Pattern(
-            regexp = "^[0-9]{10,15}$",
-            message = "Phone number must contain between 10 and 15 digits"
-    )
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
     private String phoneNumber;
 
     @NotBlank(message = "Address is required")
-    @Size(
-            max = 255,
-            message = "Address cannot exceed 255 characters"
-    )
     private String address;
 
     @NotBlank(message = "City is required")
-    @Size(
-            max = 100,
-            message = "City cannot exceed 100 characters"
-    )
+    @Size(max = 100, message = "City must not exceed 100 characters")
     private String city;
 
     @NotBlank(message = "State is required")
-    @Size(
-            max = 100,
-            message = "State cannot exceed 100 characters"
-    )
+    @Size(max = 100, message = "State must not exceed 100 characters")
     private String state;
 
     @NotBlank(message = "Country is required")
-    @Size(
-            max = 100,
-            message = "Country cannot exceed 100 characters"
-    )
+    @Size(max = 100, message = "Country must not exceed 100 characters")
     private String country;
 
     @NotBlank(message = "Pincode is required")
-    @Pattern(
-            regexp = "^[0-9]{6}$",
-            message = "Pincode must contain exactly 6 digits"
-    )
+    @Size(max = 10, message = "Pincode must not exceed 10 characters")
     private String pincode;
 
     @NotNull(message = "Price for two is required")
-    @DecimalMin(
-            value = "0.0",
-            inclusive = false,
-            message = "Price for two must be greater than 0"
-    )
+    @DecimalMin(value = "0.0", inclusive = true, message = "Price for two cannot be negative")
     private BigDecimal priceForTwo;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "Rating cannot be negative")
+    @DecimalMax(value = "5.0", inclusive = true, message = "Rating cannot exceed 5")
+    private BigDecimal rating;
 
     private LocalTime openingTime;
 
     private LocalTime closingTime;
+
+    // =========================
+    // Frontend / Restaurant Data
+    // =========================
+
+    private List<String> cuisines;
+
+    private String distance;
+
+    private String offer;
+
+    private String image;
 }
+

@@ -1,6 +1,5 @@
-package com.ordernow.paymentservice.controller;
 
-import java.util.List;
+package com.ordernow.paymentservice.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 import com.ordernow.paymentservice.dto.CreatePaymentRequest;
 import com.ordernow.paymentservice.dto.PaymentResponse;
-import com.ordernow.paymentservice.entity.PaymentStatus;
 import com.ordernow.paymentservice.service.PaymentService;
 
 import jakarta.validation.Valid;
@@ -23,58 +21,47 @@ public class PaymentController {
 
     @PostMapping
     public ResponseEntity<PaymentResponse> createPayment(
-            @Valid @RequestBody CreatePaymentRequest request) {
+            @Valid @RequestBody CreatePaymentRequest request,
+            @RequestHeader("X-Authenticated-User-Id") String userId) {
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
+        request.setUserId(userId);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
                 .body(paymentService.createPayment(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<PaymentResponse> getPaymentById(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestHeader("X-Authenticated-User-Id") String userId) {
 
         return ResponseEntity.ok(
-                paymentService.getPaymentById(id));
+                paymentService.getPaymentById(id, userId));
     }
 
     @GetMapping("/order/{orderId}")
     public ResponseEntity<PaymentResponse> getPaymentByOrderId(
-            @PathVariable Long orderId) {
+            @PathVariable Long orderId,
+            @RequestHeader("X-Authenticated-User-Id") String userId) {
 
         return ResponseEntity.ok(
-                paymentService.getPaymentByOrderId(orderId));
+                paymentService.getPaymentByOrderId(orderId, userId));
     }
 
-    @GetMapping
-    public ResponseEntity<List<PaymentResponse>> getAllPayments() {
+    @GetMapping("/my-payments")
+    public ResponseEntity<?> getMyPayments(
+            @RequestHeader("X-Authenticated-User-Id") String userId) {
 
         return ResponseEntity.ok(
-                paymentService.getAllPayments());
+                paymentService.getPaymentsByUserId(userId));
     }
 
     @PostMapping("/{id}/upi")
     public ResponseEntity<PaymentResponse> processUpiPayment(
-            @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                paymentService.processUpiPayment(id));
-    }
-
-    @PostMapping("/{id}/cod/complete")
-    public ResponseEntity<PaymentResponse> completeCodPayment(
-            @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                paymentService.completeCodPayment(id));
-    }
-
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<PaymentResponse> updatePaymentStatus(
             @PathVariable Long id,
-            @RequestParam PaymentStatus status) {
+            @RequestHeader("X-Authenticated-User-Id") String userId) {
 
         return ResponseEntity.ok(
-                paymentService.updatePaymentStatus(id, status));
+                paymentService.processUpiPayment(id, userId));
     }
 }

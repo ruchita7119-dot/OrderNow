@@ -1,5 +1,7 @@
+
 package com.ordernow.paymentservice.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,11 +15,17 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByOrderId(Long orderId);
 
+    Optional<Payment> findByOrderIdAndUserId(Long orderId, String userId);
+
+    Optional<Payment> findByIdAndUserId(Long id, String userId);
+
+    List<Payment> findAllByUserId(String userId);
+
     Optional<Payment> findByTransactionId(String transactionId);
 
     boolean existsByOrderId(Long orderId);
 
     boolean existsByTransactionId(String transactionId);
 
-    java.util.List<Payment> findByPaymentStatus(PaymentStatus paymentStatus);
+    List<Payment> findByPaymentStatus(PaymentStatus paymentStatus);
 }

@@ -3,6 +3,7 @@ package com.ordernow.hotelservice.service.impl;
 import com.ordernow.hotelservice.dto.request.CreateHotelRequest;
 import com.ordernow.hotelservice.dto.response.HotelResponse;
 import com.ordernow.hotelservice.entity.Hotel;
+import com.ordernow.hotelservice.exception.DuplicateResourceException;
 import com.ordernow.hotelservice.exception.ResourceNotFoundException;
 import com.ordernow.hotelservice.mapper.HotelMapper;
 import com.ordernow.hotelservice.repository.HotelRepository;
@@ -14,7 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
-import com.ordernow.hotelservice.exception.DuplicateResourceException;
+
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
@@ -26,13 +27,10 @@ public class HotelServiceImpl implements HotelService {
 
     private final HotelRepository hotelRepository;
 
-    private final HotelMapper hotelMapper;
-
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final Duration CACHE_DURATION =
             Duration.ofMinutes(10);
-
 
     @Override
     public HotelResponse createHotel(CreateHotelRequest request) {
@@ -51,7 +49,7 @@ public class HotelServiceImpl implements HotelService {
             );
         }
 
-        Hotel hotel = hotelMapper.toEntity(request);
+        Hotel hotel = HotelMapper.toEntity(request);
 
         hotel.setRating(null);
         hotel.setIsActive(true);
@@ -59,7 +57,7 @@ public class HotelServiceImpl implements HotelService {
 
         Hotel savedHotel = hotelRepository.save(hotel);
 
-        return hotelMapper.toResponse(savedHotel);
+        return HotelMapper.toResponse(savedHotel);
     }
 
     @Override
@@ -100,7 +98,7 @@ public class HotelServiceImpl implements HotelService {
         }
 
         HotelResponse response =
-                hotelMapper.toResponse(hotel);
+                HotelMapper.toResponse(hotel);
 
         redisTemplate.opsForValue()
                 .set(
@@ -112,16 +110,14 @@ public class HotelServiceImpl implements HotelService {
         return response;
     }
 
-
     @Override
     public List<HotelResponse> getAllHotels() {
 
         return hotelRepository.findByIsActiveTrue()
                 .stream()
-                .map(hotelMapper::toResponse)
+                .map(HotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Override
     public Page<HotelResponse> getHotels(
@@ -144,10 +140,10 @@ public class HotelServiceImpl implements HotelService {
         Pageable pageable =
                 PageRequest.of(page, size, sort);
 
-        return hotelRepository.findByIsActiveTrue(pageable)
-                .map(hotelMapper::toResponse);
+        return hotelRepository
+                .findByIsActiveTrue(pageable)
+                .map(HotelMapper::toResponse);
     }
-
 
     @Override
     public List<HotelResponse> getHotelsByCity(String city) {
@@ -155,10 +151,9 @@ public class HotelServiceImpl implements HotelService {
         return hotelRepository
                 .findByCityIgnoreCaseAndIsActiveTrue(city)
                 .stream()
-                .map(hotelMapper::toResponse)
+                .map(HotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Override
     public List<HotelResponse> getHotelsByName(String hotelName) {
@@ -168,20 +163,18 @@ public class HotelServiceImpl implements HotelService {
                         hotelName
                 )
                 .stream()
-                .map(hotelMapper::toResponse)
+                .map(HotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Override
     public List<HotelResponse> getActiveHotels() {
 
         return hotelRepository.findByIsActiveTrue()
                 .stream()
-                .map(hotelMapper::toResponse)
+                .map(HotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Override
     public List<HotelResponse> getVerifiedHotels() {
@@ -189,10 +182,9 @@ public class HotelServiceImpl implements HotelService {
         return hotelRepository
                 .findByIsVerifiedTrueAndIsActiveTrue()
                 .stream()
-                .map(hotelMapper::toResponse)
+                .map(HotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Override
     public List<HotelResponse> getHotelsByMinimumRating(
@@ -203,10 +195,9 @@ public class HotelServiceImpl implements HotelService {
                         rating
                 )
                 .stream()
-                .map(hotelMapper::toResponse)
+                .map(HotelMapper::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     @Override
     public HotelResponse updateHotelStatus(
@@ -226,7 +217,7 @@ public class HotelServiceImpl implements HotelService {
                 hotelRepository.save(hotel);
 
         HotelResponse response =
-                hotelMapper.toResponse(updatedHotel);
+                HotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 
@@ -239,7 +230,6 @@ public class HotelServiceImpl implements HotelService {
 
         return response;
     }
-
 
     @Override
     public HotelResponse updateHotelVerification(
@@ -259,7 +249,7 @@ public class HotelServiceImpl implements HotelService {
                 hotelRepository.save(hotel);
 
         HotelResponse response =
-                hotelMapper.toResponse(updatedHotel);
+                HotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 
@@ -272,7 +262,6 @@ public class HotelServiceImpl implements HotelService {
 
         return response;
     }
-
 
     @Override
     public HotelResponse updateHotel(
@@ -288,13 +277,13 @@ public class HotelServiceImpl implements HotelService {
                         )
                 );
 
-        hotelMapper.updateEntity(request, hotel);
+        HotelMapper.updateEntity(request, hotel);
 
         Hotel updatedHotel =
                 hotelRepository.save(hotel);
 
         HotelResponse response =
-                hotelMapper.toResponse(updatedHotel);
+                HotelMapper.toResponse(updatedHotel);
 
         String key = "hotel:" + id;
 
@@ -307,7 +296,6 @@ public class HotelServiceImpl implements HotelService {
 
         return response;
     }
-
 
     @Override
     public void deleteHotel(Long id) {
@@ -327,7 +315,6 @@ public class HotelServiceImpl implements HotelService {
 
         redisTemplate.delete(key);
     }
-
 
     private void validateOperatingHours(
             CreateHotelRequest request) {

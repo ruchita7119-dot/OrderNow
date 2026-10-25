@@ -7,6 +7,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -66,4 +68,25 @@ public class Hotel extends BaseEntity {
 
     @Column(name = "is_verified")
     private Boolean isVerified = false;
+
+    // =========================
+    // Frontend / Restaurant Data
+    // =========================
+
+    @ElementCollection
+    @CollectionTable(
+            name = "hotel_cuisines",
+            joinColumns = @JoinColumn(name = "hotel_id")
+    )
+    @Column(name = "cuisine")
+    private List<String> cuisines = new ArrayList<>();
+
+    @Column(length = 50)
+    private String distance;
+
+    @Column(length = 100)
+    private String offer;
+
+    @Column(name = "image_url", length = 500)
+    private String image;
 }

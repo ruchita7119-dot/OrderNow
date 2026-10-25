@@ -1,3 +1,4 @@
+
 package com.ordernow.orderservice.service.impl;
 
 import java.time.Duration;
@@ -46,9 +47,8 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = orderMapper.toEntity(request);
 
-        if (request.getPaymentMethod() == PaymentMethod.COD) {
-            order.setPaymentStatus(PaymentStatus.PENDING);
-        } else if (request.getPaymentMethod() == PaymentMethod.UPI) {
+        if (request.getPaymentMethod() == PaymentMethod.COD
+                || request.getPaymentMethod() == PaymentMethod.UPI) {
             order.setPaymentStatus(PaymentStatus.PENDING);
         }
 
@@ -56,10 +56,9 @@ public class OrderServiceImpl implements OrderService {
 
         OrderResponse response = orderMapper.toResponse(savedOrder);
 
-        String cacheKey = ORDER_CACHE_PREFIX + savedOrder.getId();
-
         redisTemplate.opsForValue()
-                .set(cacheKey, response, CACHE_DURATION);
+                .set(ORDER_CACHE_PREFIX + savedOrder.getId(),
+                        response, CACHE_DURATION);
 
         return response;
     }
@@ -76,12 +75,12 @@ public class OrderServiceImpl implements OrderService {
 
         } catch (ResourceNotFoundException ex) {
             throw ex;
-
         } catch (Exception ex) {
             throw new ResourceNotFoundException(
                     "Unable to find user with id: " + userId);
         }
     }
+
     private void validateHotel(Long hotelId) {
 
         try {
@@ -99,35 +98,47 @@ public class OrderServiceImpl implements OrderService {
 
         } catch (ResourceNotFoundException ex) {
             throw ex;
-
         } catch (IllegalArgumentException ex) {
             throw ex;
-
         } catch (Exception ex) {
-            ex.printStackTrace();
-
             throw new RuntimeException(
                     "Hotel service call failed: " + ex.getMessage(), ex);
         }
     }
 
+    // Customer: retrieve an order only when it belongs to this user.
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderById(Long id, String userId) {
+
+        Order order = orderRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
+
+        OrderResponse response = orderMapper.toResponse(order);
+
+        redisTemplate.opsForValue()
+                .set(ORDER_CACHE_PREFIX + id, response, CACHE_DURATION);
+
+        return response;
+    }
+
+    // Internal: Payment Service uses this lookup.
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(Long id) {
 
         String cacheKey = ORDER_CACHE_PREFIX + id;
 
-        Object cachedOrder =
-                redisTemplate.opsForValue().get(cacheKey);
+        Object cachedOrder = redisTemplate.opsForValue().get(cacheKey);
 
         if (cachedOrder instanceof OrderResponse response) {
             return response;
         }
 
         Order order = orderRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
 
         OrderResponse response = orderMapper.toResponse(order);
 
@@ -135,6 +146,16 @@ public class OrderServiceImpl implements OrderService {
                 .set(cacheKey, response, CACHE_DURATION);
 
         return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getOrdersByUserId(String userId) {
+
+        return orderRepository.findByUserIdOrderByOrderDateDesc(userId)
+                .stream()
+                .map(orderMapper::toResponse)
+                .toList();
     }
 
     @Override
@@ -149,21 +170,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponse> getOrdersByUserId(String userId) {
-
-        return orderRepository
-                .findByUserIdOrderByOrderDateDesc(userId)
-                .stream()
-                .map(orderMapper::toResponse)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByHotelId(Long hotelId) {
 
-        return orderRepository
-                .findByHotelIdOrderByOrderDateDesc(hotelId)
+        return orderRepository.findByHotelIdOrderByOrderDateDesc(hotelId)
                 .stream()
                 .map(orderMapper::toResponse)
                 .toList();
@@ -173,22 +182,18 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByStatus(OrderStatus status) {
 
-        return orderRepository
-                .findByStatus(status)
+        return orderRepository.findByStatus(status)
                 .stream()
                 .map(orderMapper::toResponse)
                 .toList();
     }
 
     @Override
-    public OrderResponse updateOrderStatus(
-            Long id,
-            OrderStatus status) {
+    public OrderResponse updateOrderStatus(Long id, OrderStatus status) {
 
         Order order = orderRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
             throw new IllegalArgumentException(
@@ -204,17 +209,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order updatedOrder = orderRepository.save(order);
 
-        String cacheKey = ORDER_CACHE_PREFIX + id;
-
-        redisTemplate.delete(cacheKey);
-
-        OrderResponse response =
-                orderMapper.toResponse(updatedOrder);
-
-        redisTemplate.opsForValue()
-                .set(cacheKey, response, CACHE_DURATION);
-
-        return response;
+        return updateCache(updatedOrder);
     }
 
     @Override
@@ -224,9 +219,8 @@ public class OrderServiceImpl implements OrderService {
             String paymentId) {
 
         Order order = orderRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
 
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new IllegalArgumentException(
@@ -241,26 +235,32 @@ public class OrderServiceImpl implements OrderService {
 
         Order updatedOrder = orderRepository.save(order);
 
-        String cacheKey = ORDER_CACHE_PREFIX + id;
-
-        redisTemplate.delete(cacheKey);
-
-        OrderResponse response =
-                orderMapper.toResponse(updatedOrder);
-
-        redisTemplate.opsForValue()
-                .set(cacheKey, response, CACHE_DURATION);
-
-        return response;
+        return updateCache(updatedOrder);
     }
 
+    // Customer: cancel only an order owned by this user.
+    @Override
+    public void cancelOrder(Long id, String userId) {
+
+        Order order = orderRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
+
+        cancelOrderEntity(order);
+    }
+
+    // Internal/administrative cancellation.
     @Override
     public void cancelOrder(Long id) {
 
         Order order = orderRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
+
+        cancelOrderEntity(order);
+    }
+
+    private void cancelOrderEntity(Order order) {
 
         if (order.getStatus() == OrderStatus.DELIVERED) {
             throw new IllegalArgumentException(
@@ -273,22 +273,33 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setStatus(OrderStatus.CANCELLED);
-
         orderRepository.save(order);
 
-        redisTemplate.delete(ORDER_CACHE_PREFIX + id);
+        redisTemplate.delete(ORDER_CACHE_PREFIX + order.getId());
     }
 
     @Override
     public void deleteOrder(Long id) {
 
         Order order = orderRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + id));
 
         orderRepository.delete(order);
-
         redisTemplate.delete(ORDER_CACHE_PREFIX + id);
+    }
+
+    private OrderResponse updateCache(Order order) {
+
+        String cacheKey = ORDER_CACHE_PREFIX + order.getId();
+
+        redisTemplate.delete(cacheKey);
+
+        OrderResponse response = orderMapper.toResponse(order);
+
+        redisTemplate.opsForValue()
+                .set(cacheKey, response, CACHE_DURATION);
+
+        return response;
     }
 }

@@ -1,3 +1,4 @@
+
 package com.ordernow.orderservice.service;
 
 import java.util.List;
@@ -11,11 +12,17 @@ public interface OrderService {
 
     OrderResponse createOrder(CreateOrderRequest request);
 
+    // Customer operations
+    OrderResponse getOrderById(Long id, String userId);
+
+    List<OrderResponse> getOrdersByUserId(String userId);
+
+    void cancelOrder(Long id, String userId);
+
+    // Internal and administrative operations
     OrderResponse getOrderById(Long id);
 
     List<OrderResponse> getAllOrders();
-
-    List<OrderResponse> getOrdersByUserId(String userId);
 
     List<OrderResponse> getOrdersByHotelId(Long hotelId);
 

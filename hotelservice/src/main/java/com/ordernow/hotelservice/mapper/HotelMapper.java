@@ -3,12 +3,15 @@ package com.ordernow.hotelservice.mapper;
 import com.ordernow.hotelservice.dto.request.CreateHotelRequest;
 import com.ordernow.hotelservice.dto.response.HotelResponse;
 import com.ordernow.hotelservice.entity.Hotel;
-import org.springframework.stereotype.Component;
 
-@Component
+import java.util.ArrayList;
+
 public class HotelMapper {
 
-    public Hotel toEntity(CreateHotelRequest request) {
+    private HotelMapper() {
+    }
+
+    public static Hotel toEntity(CreateHotelRequest request) {
 
         Hotel hotel = new Hotel();
 
@@ -23,13 +26,60 @@ public class HotelMapper {
         hotel.setCountry(request.getCountry());
         hotel.setPincode(request.getPincode());
         hotel.setPriceForTwo(request.getPriceForTwo());
+        hotel.setRating(request.getRating());
         hotel.setOpeningTime(request.getOpeningTime());
         hotel.setClosingTime(request.getClosingTime());
+
+        // Frontend / Restaurant Data
+        hotel.setCuisines(
+                request.getCuisines() != null
+                        ? request.getCuisines()
+                        : new ArrayList<>()
+        );
+
+        hotel.setDistance(request.getDistance());
+        hotel.setOffer(request.getOffer());
+        hotel.setImage(request.getImage());
+
+        // Defaults
+        hotel.setIsActive(true);
+        hotel.setIsVerified(false);
 
         return hotel;
     }
 
-    public HotelResponse toResponse(Hotel hotel) {
+    public static void updateEntity(
+            CreateHotelRequest request,
+            Hotel hotel) {
+
+        hotel.setHotelName(request.getHotelName());
+        hotel.setDescription(request.getDescription());
+        hotel.setOwnerId(request.getOwnerId());
+        hotel.setEmail(request.getEmail());
+        hotel.setPhoneNumber(request.getPhoneNumber());
+        hotel.setAddress(request.getAddress());
+        hotel.setCity(request.getCity());
+        hotel.setState(request.getState());
+        hotel.setCountry(request.getCountry());
+        hotel.setPincode(request.getPincode());
+        hotel.setPriceForTwo(request.getPriceForTwo());
+        hotel.setRating(request.getRating());
+        hotel.setOpeningTime(request.getOpeningTime());
+        hotel.setClosingTime(request.getClosingTime());
+
+        // Frontend / Restaurant Data
+        hotel.setCuisines(
+                request.getCuisines() != null
+                        ? request.getCuisines()
+                        : new ArrayList<>()
+        );
+
+        hotel.setDistance(request.getDistance());
+        hotel.setOffer(request.getOffer());
+        hotel.setImage(request.getImage());
+    }
+
+    public static HotelResponse toResponse(Hotel hotel) {
 
         HotelResponse response = new HotelResponse();
 
@@ -50,26 +100,26 @@ public class HotelMapper {
         response.setClosingTime(hotel.getClosingTime());
         response.setIsActive(hotel.getIsActive());
         response.setIsVerified(hotel.getIsVerified());
-        response.setCreatedAt(hotel.getCreatedAt());
-        response.setUpdatedAt(hotel.getUpdatedAt());
+
+        if (hotel.getCreatedAt() != null) {
+            response.setCreatedAt(hotel.getCreatedAt());
+        }
+
+        if (hotel.getUpdatedAt() != null) {
+            response.setUpdatedAt(hotel.getUpdatedAt());
+        }
+
+        // Frontend / Restaurant Data
+        response.setCuisines(
+                hotel.getCuisines() != null
+                        ? hotel.getCuisines()
+                        : new ArrayList<>()
+        );
+
+        response.setDistance(hotel.getDistance());
+        response.setOffer(hotel.getOffer());
+        response.setImage(hotel.getImage());
 
         return response;
-    }
-
-    public void updateEntity(CreateHotelRequest request, Hotel hotel) {
-
-        hotel.setHotelName(request.getHotelName());
-        hotel.setDescription(request.getDescription());
-        hotel.setOwnerId(request.getOwnerId());
-        hotel.setEmail(request.getEmail());
-        hotel.setPhoneNumber(request.getPhoneNumber());
-        hotel.setAddress(request.getAddress());
-        hotel.setCity(request.getCity());
-        hotel.setState(request.getState());
-        hotel.setCountry(request.getCountry());
-        hotel.setPincode(request.getPincode());
-        hotel.setPriceForTwo(request.getPriceForTwo());
-        hotel.setOpeningTime(request.getOpeningTime());
-        hotel.setClosingTime(request.getClosingTime());
     }
 }

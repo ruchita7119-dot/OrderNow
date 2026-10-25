@@ -1,3 +1,4 @@
+
 package com.ordernow.paymentservice.service;
 
 import java.util.List;
@@ -10,15 +11,16 @@ public interface PaymentService {
 
     PaymentResponse createPayment(CreatePaymentRequest request);
 
-    PaymentResponse getPaymentById(Long id);
+    PaymentResponse getPaymentById(Long id, String userId);
 
-    PaymentResponse getPaymentByOrderId(Long orderId);
+    PaymentResponse getPaymentByOrderId(Long orderId, String userId);
 
-    List<PaymentResponse> getAllPayments();
+    List<PaymentResponse> getPaymentsByUserId(String userId);
 
+    PaymentResponse processUpiPayment(Long paymentId, String userId);
+
+    PaymentResponse completeCodPayment(Long paymentId, String userId);
+
+    // Keep this for trusted administrative/internal operations only.
     PaymentResponse updatePaymentStatus(Long id, PaymentStatus status);
-
-    PaymentResponse processUpiPayment(Long paymentId);
-
-    PaymentResponse completeCodPayment(Long paymentId);
 }

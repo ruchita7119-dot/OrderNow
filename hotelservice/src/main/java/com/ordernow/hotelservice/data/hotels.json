@@ -1,0 +1,29 @@
+[
+  {
+    "hotelName": "Zen - The Park",
+    "description": "Luxury fine dining restaurant serving Asian cuisines.",
+    "ownerId": 101,
+    "email": "zen@thepark.com",
+    "phoneNumber": "9876543210",
+    "address": "17 Park Street",
+    "city": "Kolkata",
+    "state": "West Bengal",
+    "country": "India",
+    "pincode": "700016",
+    "priceForTwo": 3500,
+    "rating": 4.5,
+    "openingTime": "12:00:00",
+    "closingTime": "23:30:00",
+    "isActive": true,
+    "isVerified": true,
+    "cuisines": [
+      "Asian",
+      "Chinese",
+      "Thai",
+      "Malaysian"
+    ],
+    "distance": "2.4 km",
+    "offer": "Flat 15% OFF",
+    "image": "/assets/food/images1.jpg"
+  }
+]
