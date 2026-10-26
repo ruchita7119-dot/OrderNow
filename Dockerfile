@@ -36,6 +36,9 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
+# Reduce Java memory usage
+ENV JAVA_TOOL_OPTIONS="-Xms32m -Xmx96m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC"
+
 # Install Redis and Supervisor
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -56,6 +59,10 @@ COPY start-services.sh /app/start-services.sh
 
 RUN sed -i 's/\r$//' /app/start-services.sh \
     && chmod +x /app/start-services.sh
+
+# Restrict Redis to localhost
+RUN sed -i 's/^bind .*/bind 127.0.0.1/' /etc/redis/redis.conf
+
 # Gateway port
 EXPOSE 8080
 
